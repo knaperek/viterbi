@@ -10,17 +10,9 @@ import unittest
 from random import randint, shuffle
 from viterbi import *
 
-def bits_count(number):
-    """ Returns number of binnary numbers in number """
-    i = 0
-    while (1 << i) <= number:
-        i += 1
-    return i or 1
-
 class TestFunctions(unittest.TestCase):
 
     def setUp(self):
-        # self.n_state_bits = randint(1, 10)
         self.n_state_bits = randint(2, 10)
 
         n_possible_polynomials = 2**(self.n_state_bits+1)-(self.n_state_bits+2)
@@ -29,24 +21,19 @@ class TestFunctions(unittest.TestCase):
             randint(1, n_possible_polynomials)
         )
 
-        # print('max_polynomials: {}'.format(max_polynomials))
         pols = set()  # set of polynomials
         for i in range(max_polynomials):
             ones = randint(2, self.n_state_bits + 1) # number of 1s in the polynomial
             p_bitlist = [1]*ones + [0]*(self.n_state_bits + 1 - ones)
             shuffle(p_bitlist)
-            # print('p_bitlist: {}'.format(p_bitlist))
             p = 0
             while p_bitlist:
                 p = (p << 1) | p_bitlist.pop()
-            # print('p: {}'.format(p))
             pols.add(p)
-        # p = randint(1, 2**self.n_state_bits - 1)
-        # polynomials = list( {randint(1, 2**self.n_state_bits - 1) for i in range(max_polynomials)} )  # use set to avoid duplicite polynomials
         polynomials = list(pols)
         self.n_polynomials = len(polynomials)
 
-        self.transitions = Transitions(self.n_state_bits, polynomials)
+        self.transitions = Transitions(polynomials)
 
         self.input = BinData()
         for bit in range(randint(10, 10000)):

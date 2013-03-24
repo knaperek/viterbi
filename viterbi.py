@@ -5,11 +5,10 @@ Viterbi algorithm for decoding convolutional codes.
 """
 __author__ = "Jozef Knaperek"
 
-# TODO: treba vyriesit tie bitstream-y -
-#       ako sa budu prijimat data,
-#       ako sa budu predavat do "mlynceku" a  # vyriesene: interne budem pouzivat Python3 int (long), pricom bud na zaciatku bude prependnuta 1tka, alebo budem mat este niekde ulozeny skutocny pocet binarnych cifier v cisle (aby som vedel kolko je nul na zaciatku))
-#       ako sa budu davat na vystup (v akej forme (ascii znaky, ascii 1/0, bitstream, bytestream...))
+import sys
+import argparse
 from collections import namedtuple
+
 
 def hamming_distance(a, b):
     """ Returns Hamming distance of two codes """
@@ -20,7 +19,6 @@ def hamming_distance(a, b):
         xorred >>= 1
     return ones
 
-# polynomials = list()  # list of integer numbers, representing polynomials (in binary format)
 def parity(number):
     """ xors all bits in number and returns the result """
     par = 0  # inicialize to even parity
@@ -39,19 +37,39 @@ def conv_parity(window, polynomials):
         code = (code << 1) | bit
     return code
 
+def bits_count(number):
+    """ Returns minimum number of bit digits required to store the number. """
+    i = 0
+    while (1 << i) <= number:
+        i += 1
+    return i or 1
+
+def ones_count(number):
+    """ Returns the number of binary 1s in the number. """
+    number = int(number)  # make a copy
+    ones = 0
+    while number:
+        ones += number & 1
+        number >>= 1
+    return ones
+
 class BinData:
     """ Wrapper of standard int/long type. Keeps track of the number of bits occupied. """
 
     def __init__(self, number=0, length=0):
-        # todo: ak number je string, vyparsovat ho...
-        self.num = number
-        self.len = length
+        if isinstance(number, int):  # first try to deal with number as it is regular int
+            self.num = number
+            self.len = length
+        else:  # ...or try dealing with it as it is a string (in binary representation)
+            number = number.strip()
+            self.num = int(number, 2)
+            self.len = len(number)
 
     def __str__(self):
         return '{{:0{}b}}'.format(self.len).format(self.num)
 
     def __repr__(self):
-        return '{}({}, {})'.format(self.__class__.__name__, self.num, self.len) # return TODO: vratit vhodny repr
+        return '{}({}, {})'.format(self.__class__.__name__, self.num, self.len)
 
     def __eq__(self, other):
         return (self.num == other.num) and (self.len == other.len)
@@ -104,36 +122,31 @@ class BinData:
             return self.__class__(self.num ^ other, self.len)
 
 
-# stav[3][0] = (new_state, parity)  # named tuples used - Edge(new_state, parity)
-# stav[3][1] = (new_state, parity)
+# stav[3][0/1] = (new_state, parity)  # named tuples used - Edge(new_state, parity)
 Edge = namedtuple('Edge', 'new_state, parity')
 
 class Transitions(object):
     """docstring for Transitions"""
-    def __init__(self, n_state_bits, polynomials):
-        self.n_state_bits = n_state_bits
-        self.n_states = 2**n_state_bits
+    def __init__(self, polynomials):
+        self.n_state_bits = bits_count(max(polynomials)) - 1
+        self.n_states = 2**self.n_state_bits
         self.polynomials = polynomials
         self.parity_len = len(polynomials)  # length of the parity per one data bit
-        # ak by bolo treba, tuna by sa dalo vypocitat window size - podla najdlhsieho polynomu
-
         self.states =   [
                             [
-                                Edge(new_state=((i_state<<1)&(2**n_state_bits-1))|bit,
+                                Edge(new_state=((i_state<<1)&(2**self.n_state_bits-1))|bit,
                                      parity=conv_parity(i_state<<1|bit, polynomials) )
                             for bit in range(2)
                             ]
                         for i_state in range(self.n_states)
                         ]
 
-    def __str__(self):  # TODO: doladit "zarovnavanie" bitov (padding with zeros) podla dlzky stavu/parity
+    def __str__(self):
         output = ''
         for i, state in enumerate(self.states):
-            state_code = '{0:b}'.format(i)
-            # zip([state_code, ' '*len(state_code)], [' --{0}/{1:b}--> {2:b}'.format(b, state[b].parity, state[b].new_state) for b in (0, 1)])
-            lines = [' --{0}/{1:b}--> {2:b}\n'.format(b, state[b].parity, state[b].new_state) for b in (0, 1)]
+            state_code = '{{:0{}b}}'.format(self.n_state_bits).format(i)
+            lines = [' --{{}}/{{:0{}b}}--> {{:0{}b}}\n'.format(self.parity_len, self.n_state_bits).format(b, state[b].parity, state[b].new_state) for b in (0, 1)]
             output += state_code + lines[0] + ' '*len(state_code) + lines[1] + '\n'
-            # output += '\n'.join([' --{0}/{1:b}--> {2:b}'.format(b, state[b].parity, state[b].new_state) for b in (0, 1)]) + '\n\n'
         return output
 
     def generate_parities(self, bindata):
@@ -145,7 +158,7 @@ class Transitions(object):
             yield self.states[state][bit].parity
             state = self.states[state][bit].new_state
 
-    def encode(self, bindata):  # TODO: mozno oddelit tuto funkciu von z tejto triedy; a transitions dostane len ako parameter
+    def encode(self, bindata):
         """ Encodes data using convolutional code. Public method (API). """
         parity_sequence = BinData(0, 0)
         for parity in self.generate_parities(bindata):
@@ -211,45 +224,39 @@ class Transitions(object):
         return best_state.bindata
 
 
-import sys
-import argparse
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="-= Encoder/Decoder of convolutional codes.\nAuthor: Jozef Knaperek =-\n")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-e', '--encode', action='store_true', help='encode data with convolutional code')
     group.add_argument('-d', '--decode', action='store_true', help='decode data using Viterbi algorithm')
 
     def make_bindata(arg):
-        arg = arg.strip()
-        return BinData(int(arg, 2), len(arg))
+        return BinData(arg)
     make_bindata.__name__ = 'input data'
     parser.add_argument('-i', '--input', type=make_bindata, help='input data bit-stream (instead of using stdin)')
 
     def make_pols_list(arg):
-        return [int(pol, 2) for pol in arg.split(',')]
+        pols = [int(pol, 2) for pol in arg.split(',')]
+        if min(map(ones_count, pols)) < 2:
+            raise ValueError('Every valid polynomial must have at least two binary 1s')
+        return pols
     make_pols_list.__name__ = 'polynomials list'
-    parser.add_argument('polynomials', help='comma separated list of binnary polynomials', type=make_pols_list)
+    parser.add_argument('polynomials', help='comma separated list of binnary polynomials (of at least two binary 1s in each)', type=make_pols_list)
 
     args = parser.parse_args()
-    # print('Debug {}'.format(args))
 
-    if args.input:
-        input_data = args.input
-    else:
-        stdin_input = sys.stdin.read().strip()
-        try:
-            input_data = BinData(int(stdin_input, 2), len(stdin_input))
-        except ValueError:
-            sys.exit('Invalid input data: ' + stdin_input)
+    try:
+        input_data = args.input or BinData(sys.stdin.read())
+    except ValueError:
+        sys.exit('Invalid input data: ' + stdin_input)
 
-    n_state_bits = 10  # todo: include automatic calculation of the number of state bits in the Transitions
-    if args.encode:
-        print(Transitions(n_state_bits, polynomials).encode(input_data))
+    if args.encode:  # encode
+        print(Transitions(args.polynomials).encode(input_data))
     else:  # decode
         if len(input_data) % len(args.polynomials):
             sys.exit('Decoding error: The number of data bits ({}) is not multiple of the number of polynomials ({})!'.format(len(input_data), len(args.polynomials)))
-        print(Transitions(n_state_bits, polynomials).decode(input_data))
+        print(Transitions(args.polynomials).decode(input_data))
 
 
 if __name__ == '__main__':
