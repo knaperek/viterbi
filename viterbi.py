@@ -210,3 +210,47 @@ class Transitions(object):
         # Decoded databits:
         return best_state.bindata
 
+
+import sys
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-e', '--encode', action='store_true', help='encode data with convolutional code')
+    group.add_argument('-d', '--decode', action='store_true', help='decode data using Viterbi algorithm')
+
+    def make_bindata(arg):
+        arg = arg.strip()
+        return BinData(int(arg, 2), len(arg))
+    make_bindata.__name__ = 'input data'
+    parser.add_argument('-i', '--input', type=make_bindata, help='input data bit-stream (instead of using stdin)')
+
+    def make_pols_list(arg):
+        return [int(pol, 2) for pol in arg.split(',')]
+    make_pols_list.__name__ = 'polynomials list'
+    parser.add_argument('polynomials', help='comma separated list of binnary polynomials', type=make_pols_list)
+
+    args = parser.parse_args()
+    # print('Debug {}'.format(args))
+
+    if args.input:
+        input_data = args.input
+    else:
+        stdin_input = sys.stdin.read().strip()
+        try:
+            input_data = BinData(int(stdin_input, 2), len(stdin_input))
+        except ValueError:
+            sys.exit('Invalid input data: ' + stdin_input)
+
+    n_state_bits = 10  # todo: include automatic calculation of the number of state bits in the Transitions
+    if args.encode:
+        print(Transitions(n_state_bits, polynomials).encode(input_data))
+    else:  # decode
+        if len(input_data) % len(args.polynomials):
+            sys.exit('Decoding error: The number of data bits ({}) is not multiple of the number of polynomials ({})!'.format(len(input_data), len(args.polynomials)))
+        print(Transitions(n_state_bits, polynomials).decode(input_data))
+
+
+if __name__ == '__main__':
+    main()
