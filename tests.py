@@ -92,9 +92,9 @@ class TestFunctions(unittest.TestCase):
         decoded = self.transitions.decode(encoded_err)
 
         hd = hamming_distance(data.num, decoded.num)
-        self.assertEqual(data, decoded, 'hamming distance: {}'.format(hd))  # Following should be true: Decode(Encode(Data)) == Data
+        self.assertTrue(data == decoded, 'hamming distance: {}'.format(hd))  # Following should be true: Decode(Encode(Data)) == Data
 
-    def test_d_few_errors(self):
+    def test_d_more_errors(self):
         """ Tests decoding after a few bit errors introduced during "transmission". """
         data = self.input
         encoded = self.transitions.encode(data)
@@ -111,7 +111,7 @@ class TestFunctions(unittest.TestCase):
         print('{} of {} bit errors ({}%)'.format(n_errors, encoded.len, int(n_errors / encoded.len * 100)))
 
         hd = hamming_distance(data.num, decoded.num)
-        self.assertEqual(data, decoded, 'hamming distance: {}'.format(hd))  # Following should/could be true: Decode(Encode(Data)) == Data
+        self.assertTrue(data == decoded, 'hamming distance: {}'.format(hd))  # Following should/could be true: Decode(Encode(Data)) == Data
 
 
     def tearDown(self):
