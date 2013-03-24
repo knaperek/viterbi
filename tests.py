@@ -8,7 +8,7 @@ __author__ = "Jozef Knaperek"
 
 import unittest
 from random import randint, shuffle
-from main import *
+from viterbi import *
 
 def bits_count(number):
     """ Returns number of binnary numbers in number """
