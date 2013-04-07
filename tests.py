@@ -55,7 +55,6 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(encoded, encoded_2)  # Encoding should give always the same output
         self.assertEqual(decoded, decoded_2)  # Decoding should give always the same output
 
-
     def test_b_errorfree(self):
         """ Tests decoding after error-free transmission. """
         data = self.input
@@ -95,11 +94,10 @@ class TestFunctions(unittest.TestCase):
         decoded = self.transitions.decode(encoded_err)
 
         n_errors = hamming_distance(encoded.num, encoded_err.num)
-        print('{} of {} bit errors ({}%)'.format(n_errors, encoded.len, int(n_errors / encoded.len * 100)))
+        print('{2}% bit errors ({0} of {1})'.format(n_errors, encoded.len, int(n_errors / encoded.len * 100)), end='\t')
 
         hd = hamming_distance(data.num, decoded.num)
         self.assertTrue(data == decoded, 'hamming distance: {}'.format(hd))  # Following should/could be true: Decode(Encode(Data)) == Data
-
 
     def tearDown(self):
         print('Tested with {} state bits, {} polynomials and {} input data bits'.format(self.n_state_bits, self.n_polynomials, self.input.len))

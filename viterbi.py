@@ -224,7 +224,6 @@ class Transitions(object):
         return best_state.bindata
 
 
-
 def main():
     parser = argparse.ArgumentParser(description="-= Encoder/Decoder of convolutional codes.\nAuthor: Jozef Knaperek =-\n")
     group = parser.add_mutually_exclusive_group(required=True)
